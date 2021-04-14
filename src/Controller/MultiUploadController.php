@@ -37,6 +37,8 @@ class MultiUploadController extends MediaAdminController
             $pool = $this->getPool();
 
             return $this->render('@SonataMultiUpload/select_provider.html.twig', [
+                'base_template' => $this->getBaseTemplate(),
+                'admin' => $this->admin,
                 'providers' => $pool->getProvidersByContext(
                     $request->get('context', $pool->getDefaultContext())
                 ),
@@ -61,6 +63,8 @@ class MultiUploadController extends MediaAdminController
         if (!$request->files->has('file')) {
             return $this->render('@SonataMultiUpload/multi_upload.html.twig', [
                 'action' => 'multi_upload',
+                'base_template' => $this->getBaseTemplate(),
+                'admin' => $this->admin,
                 'form' => $form->createView(),
                 'provider' => $provider,
                 'maxUploadFilesize' => $this->container->getParameter('sonata_multi_upload.max_upload_filesize'),
