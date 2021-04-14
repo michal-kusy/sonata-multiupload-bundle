@@ -7,9 +7,11 @@ use Sonata\Doctrine\Model\ManagerInterface;
 use Sonata\MediaBundle\Controller\MediaAdminController;
 use Sonata\MediaBundle\Model\MediaInterface;
 use Sonata\MediaBundle\Provider\MediaProviderInterface;
+use Sonata\MediaBundle\Provider\Pool;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * @codeCoverageIgnore
@@ -21,17 +23,18 @@ class MultiUploadController extends MediaAdminController
      */
     private $mediaManager;
 
-    public function __construct(ManagerInterface $mediaManager)
+    public function __construct(ManagerInterface $mediaManager, Pool $sonataMediaPool)
     {
+        parent::__construct($sonataMediaPool);
         $this->mediaManager = $mediaManager;
     }
 
-    public function createAction(Request $request = null)
+    public function createAction(?Request $request = null): Response
     {
         $this->admin->checkAccess('create');
 
         if (!$request->get('provider') && $request->isMethod('get')) {
-            $pool = $this->get('sonata.media.pool');
+            $pool = $this->getPool();
 
             return $this->render('@SonataMultiUpload/select_provider.html.twig', [
                 'providers' => $pool->getProvidersByContext(
@@ -44,7 +47,7 @@ class MultiUploadController extends MediaAdminController
         return parent::createAction($request);
     }
 
-    public function multiUploadAction(Request $request)
+    public function multiUploadAction(Request $request): Response
     {
         $this->admin->checkAccess('create');
 
