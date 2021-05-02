@@ -8,6 +8,7 @@ use Sonata\MediaBundle\Controller\MediaAdminController;
 use Sonata\MediaBundle\Model\MediaInterface;
 use Sonata\MediaBundle\Provider\MediaProviderInterface;
 use Sonata\MediaBundle\Provider\Pool;
+use Symfony\Component\DependencyInjection\ServiceLocator;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -22,11 +23,27 @@ class MultiUploadController extends MediaAdminController
      * @var ManagerInterface
      */
     private $mediaManager;
+    /**
+     * @var ServiceLocator
+     */
+    private $providerLocator;
 
-    public function __construct(ManagerInterface $mediaManager, Pool $sonataMediaPool)
-    {
+    private $paramRedirectTo;
+
+    private $paramMaxUploadFileSize;
+
+    public function __construct(
+        ManagerInterface $mediaManager,
+        Pool $sonataMediaPool,
+        ServiceLocator $providerLocator,
+        int $maxUploadFilesize,
+        ?string $redirectTo
+    ) {
         parent::__construct($sonataMediaPool);
         $this->mediaManager = $mediaManager;
+        $this->providerLocator = $providerLocator;
+        $this->paramRedirectTo = $redirectTo;
+        $this->paramMaxUploadFileSize = $maxUploadFilesize;
     }
 
     public function createAction(?Request $request = null): Response
@@ -57,7 +74,7 @@ class MultiUploadController extends MediaAdminController
         $context = $request->query->get('context', 'default');
 
         /** @var MediaProviderInterface $provider */
-        $provider = $this->get($providerName);
+        $provider = $this->providerLocator->get($providerName);
 
         $form = $this->createMultiUploadForm($provider, $context);
         if (!$request->files->has('file')) {
@@ -67,8 +84,8 @@ class MultiUploadController extends MediaAdminController
                 'admin' => $this->admin,
                 'form' => $form->createView(),
                 'provider' => $provider,
-                'maxUploadFilesize' => $this->container->getParameter('sonata_multi_upload.max_upload_filesize'),
-                'redirectTo' => $this->container->getParameter('sonata_multi_upload.redirect_to'),
+                'maxUploadFilesize' => $this->paramMaxUploadFileSize,
+                'redirectTo' => $this->paramRedirectTo,
             ]);
         }
 
