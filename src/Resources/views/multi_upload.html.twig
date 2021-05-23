@@ -45,12 +45,16 @@
             let uploadedMediaIds = [];
             $('div.{{ form.vars.id }}').dmUploader({
                 url: '{{ form.vars.action|raw }}',
+                fieldName: '{{ form.vars.id }}[binaryContent]',
+                extraData: {
+                    '{{ form.vars.id }}[_token]': '{{ csrf_token(form.vars.id) }}',
+                },
                 maxFileSize: {{ maxUploadFilesize }},
                 {% if provider.allowedExtensions is defined %}
-                    extFilter: {{ provider.allowedExtensions|json_encode|raw }},
+                extFilter: {{ provider.allowedExtensions|json_encode|raw }},
                 {% endif %}
                 {% if provider.allowedMimeTypes is defined %}
-                    allowedTypes: '{{ provider.allowedMimeTypes|join('|')|default('*') }}',
+                allowedTypes: '{{ provider.allowedMimeTypes|join('|')|default('*') }}',
                 {% endif %}
                 onDragEnter: function () {
                     $(this).addClass('drag');
@@ -80,6 +84,15 @@
                     uploadedMediaIds.push(data.id)
                 },
                 onUploadError: function (id, xhr, status, message) {
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+                        if (data && Array.isArray(data.errors)) {
+                            message = data.errors.join('<br>');
+                        }
+                    } catch (err) {
+                        // not a json error response
+                    }
+
                     setStatus(id, 'danger', message);
                     setProgress(id, 0, 'danger', false);
                     cancelRedirect = true;
@@ -97,16 +110,16 @@
                     cancelRedirect = true;
                 },
                 {% if redirectTo %}
-                    onComplete() {
-                        if(cancelRedirect) {
-                            if(!confirm('{{ 'confirm_leaving_page'|trans({}, 'SonataMultiUploadBundle') }}')) {
-                                return;
-                            }
+                onComplete() {
+                    if(cancelRedirect) {
+                        if(!confirm('{{ 'confirm_leaving_page'|trans({}, 'SonataMultiUploadBundle') }}')) {
+                            return;
                         }
-
-                        var url = '{{ path(redirectTo) }}' + '?idx=' +encodeURIComponent(JSON.stringify(uploadedMediaIds))
-                        window.location.replace(url)
                     }
+
+                    var url = '{{ path(redirectTo) }}' + '?idx=' +encodeURIComponent(JSON.stringify(uploadedMediaIds))
+                    window.location.replace(url)
+                }
                 {% endif %}
             });
 

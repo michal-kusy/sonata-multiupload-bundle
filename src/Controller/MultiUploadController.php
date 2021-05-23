@@ -2,13 +2,14 @@
 
 namespace SilasJoisten\Sonata\MultiUploadBundle\Controller;
 
-use SilasJoisten\Sonata\MultiUploadBundle\Form\MultiUploadType;
 use Sonata\Doctrine\Model\ManagerInterface;
 use Sonata\MediaBundle\Controller\MediaAdminController;
+use Sonata\MediaBundle\Form\Type\MediaType;
 use Sonata\MediaBundle\Model\MediaInterface;
 use Sonata\MediaBundle\Provider\MediaProviderInterface;
 use Sonata\MediaBundle\Provider\Pool;
 use Symfony\Component\DependencyInjection\ServiceLocator;
+use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -77,7 +78,9 @@ class MultiUploadController extends MediaAdminController
         $provider = $this->providerLocator->get($providerName);
 
         $form = $this->createMultiUploadForm($provider, $context);
-        if (!$request->files->has('file')) {
+        $form->handleRequest($request);
+
+        if (!$form->isSubmitted()) {
             return $this->render('@SonataMultiUpload/multi_upload.html.twig', [
                 'action' => 'multi_upload',
                 'base_template' => $this->getBaseTemplate(),
@@ -89,11 +92,23 @@ class MultiUploadController extends MediaAdminController
             ]);
         }
 
+        if (!$form->isValid()) {
+            return new JsonResponse([
+                'status' => 'error',
+                'errors' => array_map(
+                    static function (FormError $e): string
+                    {
+                        return $e->getMessage();
+                    },
+                    iterator_to_array($form->getErrors(true))
+                ),
+            ],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
         /** @var MediaInterface $media */
-        $media = $this->mediaManager->create();
-        $media->setContext($context);
-        $media->setBinaryContent($request->files->get('file'));
-        $media->setProviderName($providerName);
+        $media = $form->getData();
         $this->mediaManager->save($media);
 
         return new JsonResponse([
@@ -106,11 +121,13 @@ class MultiUploadController extends MediaAdminController
 
     private function createMultiUploadForm(MediaProviderInterface $provider, string $context): FormInterface
     {
-        return $this->createForm(MultiUploadType::class, null, [
+        $form = $this->createForm(MediaType::class, null, [
             'data_class' => $this->mediaManager->getClass(),
             'action' => $this->admin->generateUrl('multi_upload', ['provider' => $provider->getName()]),
             'provider' => $provider->getName(),
-            'context' => $context,
+            'context' => $context
         ]);
+
+        return $form;
     }
 }
